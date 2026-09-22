@@ -70,6 +70,7 @@ header.stuck{border-bottom-color:var(--rule)}
 .brand h1{font-family:'Unbounded',sans-serif;font-weight:700;font-size:clamp(19px,5.4vw,23px);letter-spacing:-.01em;margin:0;line-height:1.1}
 .brand .sub{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:6px}
 .badge{display:inline-flex;align-items:center;font-family:'JetBrains Mono',monospace;font-size:10.5px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;padding:3px 7px;border-radius:6px;background:var(--pen-soft);color:var(--pen)}
+.badge.warn{background:var(--lab-bg);color:var(--lab)}
 .clock-row{display:flex;align-items:baseline;gap:var(--sp-2);font-family:'JetBrains Mono',monospace;font-variant-numeric:tabular-nums}
 .clock{font-size:15px;font-weight:700;color:var(--ink)}
 .clock-date{font-size:12px;color:var(--ink-faint)}
@@ -218,6 +219,7 @@ header.stuck{border-bottom-color:var(--rule)}
         <h1 id="groupTitle">—</h1>
         <div class="sub">
           <span class="badge" id="weekBadge">—</span>
+          <span class="badge warn" id="offlineBadge" style="display:none">офлайн</span>
           <span class="clock-row"><span class="clock" id="clock">--:--:--</span><span class="clock-date" id="clockDate">—</span></span>
         </div>
       </div>
@@ -274,8 +276,29 @@ const state = {
   week: 'odd',
   day: 'Пн',
   view: 'day',
-  theme: store.get('sch.theme') || 'auto'
+  theme: store.get('sch.theme') || 'auto',
+  offline: false
 };
+
+/* ============ ОФЛАЙН-БЕЙДЖ ============ */
+function fmtCacheTime(ts){
+  if(!ts) return '';
+  const d = new Date(ts);
+  const sameDay = d.toDateString() === new Date().toDateString();
+  const time = pad(d.getHours()) + ':' + pad(d.getMinutes());
+  return sameDay ? `сегодня в ${time}` : `${d.toLocaleDateString('ru-RU',{day:'numeric',month:'long'})} в ${time}`;
+}
+function updateOfflineBadge(ts){
+  const el = document.getElementById('offlineBadge');
+  if(!el) return;
+  if(state.offline){
+    el.style.display = '';
+    el.title = ts ? `Нет связи с сервером — показана сохранённая версия от ${fmtCacheTime(ts)}` : 'Нет связи с сервером';
+  } else {
+    el.style.display = 'none';
+    el.title = '';
+  }
+}
 
 /* ============ TIME HELPERS ============ */
 const mins = t => { const [h,m] = t.split(':').map(Number); return h*60+m; };
@@ -612,33 +635,57 @@ async function bootSchedule(sel){
   document.getElementById('groupTitle').textContent = sel.gr;
   document.title = 'Расписание · ' + sel.gr;
 
+  const cacheKey = 'kubstu.cache.' + sel.gr;
+
   try{
     const data = await loadSchedule(sel);
     state.raw = data;
-    state.ANCHOR_DATE = new Date();
-    state.ANCHOR_PARITY = data.period.weekParityNow || 'odd';
-    state.week = currentParity();
-    state.day = todayKey() || 'Пн';
-    applyTheme();
-    bindScheduleEvents();
-    render();
-    tick();
-    setInterval(tick, 1000);
-    // Тихое обновление раз в час, чтобы подхватывать изменения в расписании
-    setInterval(async () => {
-      try{
-        const fresh = await loadSchedule(sel);
-        state.raw = fresh;
-        state.ANCHOR_DATE = new Date();
-        state.ANCHOR_PARITY = fresh.period.weekParityNow || state.ANCHOR_PARITY;
-        render();
-      } catch(e){ /* тихо игнорируем, покажем старые данные */ }
-    }, 60*60*1000);
+    state.offline = false;
+    store.setJSON(cacheKey, { data, ts: Date.now() });
   } catch(err){
-    document.getElementById('content').innerHTML =
-      `<div class="empty"><div class="t">Не получилось загрузить расписание</div>
-       <div class="s">${esc(err.message)}</div></div>`;
+    const cached = store.getJSON(cacheKey);
+    if(cached && cached.data){
+      state.raw = cached.data;
+      state.offline = true;
+    } else {
+      document.getElementById('content').innerHTML =
+        `<div class="empty"><div class="t">Не получилось загрузить расписание</div>
+         <div class="s">${esc(err.message)}</div></div>`;
+      return;
+    }
   }
+
+  state.ANCHOR_DATE = new Date();
+  state.ANCHOR_PARITY = state.raw.period.weekParityNow || 'odd';
+  state.week = currentParity();
+  state.day = todayKey() || 'Пн';
+  applyTheme();
+  bindScheduleEvents();
+  updateOfflineBadge((store.getJSON(cacheKey) || {}).ts);
+  render();
+  tick();
+  setInterval(tick, 1000);
+
+  async function refresh(){
+    try{
+      const fresh = await loadSchedule(sel);
+      state.raw = fresh;
+      state.offline = false;
+      store.setJSON(cacheKey, { data: fresh, ts: Date.now() });
+      state.ANCHOR_DATE = new Date();
+      state.ANCHOR_PARITY = fresh.period.weekParityNow || state.ANCHOR_PARITY;
+      updateOfflineBadge(null);
+      render();
+    } catch(e){
+      state.offline = true;
+      updateOfflineBadge((store.getJSON(cacheKey) || {}).ts);
+    }
+  }
+
+  // Тихое обновление раз в час, чтобы подхватывать изменения в расписании
+  setInterval(refresh, 60*60*1000);
+  // Как только вернулась связь — сразу пробуем обновить
+  window.addEventListener('online', refresh);
 }
 
 /* ============ ЭКРАН ВЫБОРА ГРУППЫ ============ */
@@ -719,6 +766,13 @@ async function maybeLoadGroups(){
     initPicker();
   }
 })();
+
+/* ============ SERVICE WORKER (офлайн-доступ к самой странице) ============ */
+if('serviceWorker' in navigator){
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('sw.js').catch(() => {});
+  });
+}
 </script>
 </body>
 </html>
