@@ -74,7 +74,7 @@ header.stuck{border-bottom-color:var(--rule)}
 .clock{font-size:15px;font-weight:700;color:var(--ink)}
 .clock-date{font-size:12px;color:var(--ink-faint)}
 .tools{display:flex;gap:var(--sp-2);flex:0 0 auto}
-.icon-btn{width:44px;height:44px;border-radius:var(--r-md);display:flex;align-items:center;justify-content:center;background:var(--surface);border:1px solid var(--rule);color:var(--ink-dim);transition:background var(--dur) var(--ease),color var(--dur) var(--ease)}
+.icon-btn{width:44px;height:44px;border-radius:var(--r-md);display:flex;align-items:center;justify-content:center;background:var(--surface);border:1px solid var(--rule);color:var(--ink-dim);text-decoration:none;transition:background var(--dur) var(--ease),color var(--dur) var(--ease)}
 .icon-btn:active{background:var(--surface-2);color:var(--ink)}
 .icon-btn[aria-pressed="true"]{background:var(--ink);border-color:var(--ink);color:var(--bg)}
 
@@ -182,6 +182,7 @@ header.stuck{border-bottom-color:var(--rule)}
   <symbol id="i-users" viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.9M16 3.1a4 4 0 0 1 0 7.8"/></symbol>
   <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></symbol>
   <symbol id="i-swap" viewBox="0 0 24 24"><path d="M17 3v4H5M7 21v-4h12"/><path d="M3 7l4-4 4 4M21 17l-4 4-4-4"/></symbol>
+  <symbol id="i-send" viewBox="0 0 24 24"><path d="M22 2 11 13"/><path d="M22 2 15 22 11 13 2 9 22 2Z"/></symbol>
 </svg>
 
 <div class="wrap">
@@ -224,6 +225,7 @@ header.stuck{border-bottom-color:var(--rule)}
         <button class="icon-btn" id="teachersBtn" aria-pressed="false" aria-label="Список преподавателей"><svg class="ic"><use href="#i-users"/></svg></button>
         <button class="icon-btn" id="switchBtn" aria-label="Сменить группу"><svg class="ic"><use href="#i-swap"/></svg></button>
         <button class="icon-btn" id="themeBtn" aria-label="Сменить тему"><svg class="ic"><use href="#i-moon"/></svg></button>
+        <a class="icon-btn" href="https://t.me/BlackLivesSanya" target="_blank" rel="noopener" aria-label="Разработчик в Telegram"><svg class="ic"><use href="#i-send"/></svg></a>
       </div>
     </div>
 
