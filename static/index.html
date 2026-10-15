@@ -168,6 +168,25 @@ header.stuck{border-bottom-color:var(--rule)}
 .picker .err{color:var(--pen);font-size:13px;margin-top:var(--sp-3);display:none}
 .picker .loading{font-size:13px;color:var(--ink-faint)}
 .switch-btn{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--ink-dim);margin-top:var(--sp-2)}
+.role-btn{display:flex;align-items:center;gap:var(--sp-4);width:100%;text-align:left;padding:var(--sp-4);margin-bottom:var(--sp-3);background:var(--surface);border:1px solid var(--rule);border-radius:var(--r-lg);transition:background var(--dur) var(--ease),border-color var(--dur) var(--ease)}
+.role-btn:active{background:var(--surface-2);border-color:var(--rule-strong)}
+.role-btn .ic{width:24px;height:24px;color:var(--pen)}
+.role-btn b{display:block;font-family:'Unbounded',sans-serif;font-size:15px;font-weight:600}
+.role-btn small{display:block;color:var(--ink-dim);font-size:12.5px;margin-top:2px}
+.back-btn{font-size:12.5px;color:var(--ink-dim);margin:0 0 var(--sp-4);padding:6px 0}
+.picker input[type=text]{width:100%;font-family:inherit;font-size:inherit;color:var(--ink);background:var(--surface);border:1px solid var(--rule);border-radius:var(--r-md);padding:10px 12px}
+.picker .hint{font-size:12px;color:var(--ink-faint);margin-top:6px}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:var(--sp-3)}
+.chip{display:inline-flex;align-items:center;gap:6px;font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:700;padding:6px 6px 6px 10px;border-radius:8px;background:var(--surface-2);border:1px solid var(--rule)}
+.chip button{width:22px;height:22px;border-radius:6px;color:var(--ink-dim);font-size:15px;line-height:1}
+.chip button:active{background:var(--rule)}
+.chips:empty::before{content:'Пока ни одной группы';font-size:12.5px;color:var(--ink-faint)}
+.add-box{padding:var(--sp-3);border:1px dashed var(--rule-strong);border-radius:var(--r-md);margin-bottom:var(--sp-4)}
+.add-box .field:last-child{margin-bottom:0}
+.check{display:flex;align-items:flex-start;gap:10px;font-size:13px;color:var(--ink-dim);margin-bottom:var(--sp-5);text-transform:none;letter-spacing:0;font-weight:400}
+.check input{margin-top:3px;accent-color:var(--pen)}
+.primary-btn{width:100%;min-height:46px;border-radius:var(--r-md);background:var(--ink);color:var(--bg);font-weight:600}
+.primary-btn:disabled{opacity:.35;cursor:not-allowed}
 
 @media (prefers-reduced-motion:reduce){*{animation-duration:.001ms !important;animation-iteration-count:1 !important;transition-duration:.001ms !important}.card{opacity:1;transform:none}}
 @media print{header,.nowbar{display:none !important}body{background:#fff;color:#000}.card{break-inside:avoid;border:1px solid #bbb}}
@@ -187,8 +206,61 @@ header.stuck{border-bottom-color:var(--rule)}
 </svg>
 
 <div class="wrap">
-  <!-- ===== ЭКРАН ВЫБОРА ГРУППЫ ===== -->
+  <!-- ===== ЭКРАН ВЫБОРА РОЛИ ===== -->
+  <div class="picker" id="roleScreen" style="display:none">
+    <h2>Расписание КубГТУ</h2>
+    <p>Кто вы? Выбор запомнится, повторно спрашивать не будем.</p>
+    <button class="role-btn" id="roleStudent">
+      <svg class="ic" aria-hidden="true"><use href="#i-user"/></svg>
+      <span><b>Я студент</b><small>Расписание своей группы</small></span>
+    </button>
+    <button class="role-btn" id="roleTeacher">
+      <svg class="ic" aria-hidden="true"><use href="#i-users"/></svg>
+      <span><b>Я преподаватель</b><small>Ваши пары из выбранных групп</small></span>
+    </button>
+  </div>
+
+  <!-- ===== ЭКРАН ПРЕПОДАВАТЕЛЯ ===== -->
+  <div class="picker" id="tpicker" style="display:none">
+    <button class="back-btn" data-back>← Назад</button>
+    <h2>Расписание преподавателя</h2>
+    <p>Введите ФИО и добавьте группы, в которых ведёте занятия, – пары соберутся в одно расписание.</p>
+
+    <div class="field">
+      <label for="tName">ФИО</label>
+      <input type="text" id="tName" placeholder="Фамилия Имя Отчество" autocomplete="name" autocapitalize="words">
+      <div class="hint">Как в расписании, например «Иванов Иван Иванович». Подойдёт и «Иванов И.И.».</div>
+    </div>
+
+    <label style="display:block;font-size:12px;color:var(--ink-faint);margin-bottom:6px;text-transform:uppercase;letter-spacing:.04em;font-weight:600">Ваши группы</label>
+    <div class="chips" id="tChips"></div>
+
+    <div class="add-box">
+      <div class="field">
+        <label for="tInst">Институт / факультет</label>
+        <select id="tInst"><option value="">Загрузка…</option></select>
+      </div>
+      <div class="field">
+        <label for="tKurs">Курс</label>
+        <select id="tKurs" disabled><option value="">Сначала выберите факультет</option></select>
+      </div>
+      <div class="field">
+        <label for="tGroup">Добавить группу</label>
+        <select id="tGroup" disabled><option value="">Сначала выберите курс</option></select>
+      </div>
+    </div>
+
+    <label class="check"><input type="checkbox" id="tEmpty">
+      <span>Показывать и пары, где преподаватель в расписании не указан (иногда ФИО ещё не внесено)</span></label>
+
+    <button class="primary-btn" id="tGo" disabled>Показать расписание</button>
+    <div class="loading" id="tLoading" style="display:none;margin-top:12px">Загружаю…</div>
+    <div class="err" id="tErr"></div>
+  </div>
+
+  <!-- ===== ЭКРАН ВЫБОРА ГРУППЫ (студент) ===== -->
   <div class="picker" id="picker" style="display:none">
+    <button class="back-btn" data-back>← Назад</button>
     <h2>Расписание КубГТУ</h2>
     <p>Выберите факультет, курс и группу — дальше расписание будет открываться сразу, без повторного выбора.</p>
 
@@ -350,6 +422,7 @@ function toLesson(apiLesson){
     type: apiLesson.type,
     room: apiLesson.room || PENDING,
     teacher: apiLesson.teacher || PENDING,
+    groups: apiLesson.groups || '',
     note: notes.join(' · ')
   };
 }
@@ -387,7 +460,7 @@ function cardHtml(l, i, isToday, nm){
       <div class="meta">
         <span class="sr-only">${l.num} пара, ${l.start}–${l.end}.</span>
         ${metaRow('i-pin', l.room)}
-        ${metaRow('i-user', l.teacher)}
+        ${l.groups ? metaRow('i-users', 'Группы: ' + l.groups) : metaRow('i-user', l.teacher)}
       </div>
       ${l.note ? `<div class="note">${esc(l.note)}</div>` : ''}
       ${live ? `<div class="bar"><i style="width:${pct}%"></i></div>` : ''}
@@ -494,6 +567,8 @@ function render(){
   if(typeof scheduleFit === 'function') scheduleFit();
 }
 
+function whoOf(l){ return l.groups || (l.teacher !== PENDING ? l.teacher : ''); }
+
 function renderNowbar(){
   const bar = document.getElementById('nowbar');
   const tk = todayKey();
@@ -517,13 +592,13 @@ function renderNowbar(){
     bar.innerHTML = `<span class="dot" aria-hidden="true"></span>
       <span class="txt"><span class="lbl">Идёт сейчас</span>
         <span class="val">${esc(live.subject)}</span>
-        <span class="meta">${esc(live.room)}${live.teacher!==PENDING?' · '+esc(live.teacher):''}</span></span>
+        <span class="meta">${esc(live.room)}${whoOf(live)?' · '+esc(whoOf(live)):''}</span></span>
       <span class="cd">${cd(mins(live.end))}<small>до конца</small></span>`;
   } else if(next){
     bar.classList.add('show');
     bar.innerHTML = `<span class="txt"><span class="lbl">Дальше в ${next.start}</span>
         <span class="val">${esc(next.subject)}</span>
-        <span class="meta">${esc(next.room)}${next.teacher!==PENDING?' · '+esc(next.teacher):''}</span></span>
+        <span class="meta">${esc(next.room)}${whoOf(next)?' · '+esc(whoOf(next)):''}</span></span>
       <span class="cd">${cd(mins(next.start))}<small>до начала</small></span>`;
   } else {
     bar.classList.add('show');
@@ -629,16 +704,80 @@ async function loadSchedule(sel){
   return json.data;
 }
 
+/* ---- режим преподавателя: сборка пар по ФИО из выбранных групп ---- */
+const norm = s => String(s || '').toLowerCase().replace(/ё/g,'е').replace(/[.,]/g,' ').trim().split(/\s+/).filter(Boolean);
+
+function nameMatches(query, teacher){
+  const q = norm(query), t = norm(teacher);
+  if(!q.length || !t.length) return false;
+  // фамилия – самое длинное слово из запроса (на случай «И.И. Иванов»)
+  const si = q.findIndex(w => w.length > 1);
+  if(si < 0) return false;
+  const rest = q.filter((_, i) => i !== si);
+  if(q[si] !== t[0]) return false;
+  return rest.every((w, i) => !t[i+1] || t[i+1].startsWith(w));
+}
+
+function shortName(full){
+  const w = String(full || '').replace(/\./g,' ').trim().split(/\s+/).filter(Boolean);
+  if(!w.length) return 'Преподаватель';
+  const cap = x => x.charAt(0).toUpperCase() + x.slice(1);
+  const i = w.findIndex(x => x.length > 1);
+  const sur = cap(w[i < 0 ? 0 : i]);
+  const ini = w.filter((_, k) => k !== i).map(x => x.charAt(0).toUpperCase() + '.').join('');
+  return ini ? `${sur} ${ini}` : sur;
+}
+
+async function loadTeacher(sel){
+  const results = await Promise.all(sel.groups.map(loadSchedule));
+  const out = { period: results[0].period, schedule: { odd: {}, even: {} } };
+  const map = new Map();
+  results.forEach((r, i) => {
+    const gname = sel.groups[i].gr;
+    ['odd','even'].forEach(w => Object.entries(r.schedule[w] || {}).forEach(([day, list]) => list.forEach(l => {
+      const t = (l.teacher || '').trim();
+      if(!(t ? nameMatches(sel.name, t) : sel.includeEmpty)) return;
+      const key = [w, day, l.num, l.subject, l.type, l.room, t].join('|');
+      let e = map.get(key);
+      if(!e){ e = { w, day, lesson: Object.assign({}, l), groups: [] }; map.set(key, e); }
+      if(!e.groups.includes(gname)) e.groups.push(gname);
+    })));
+  });
+  map.forEach(e => {
+    const l = e.lesson;
+    l.groups = e.groups.join(', ');
+    l.percentOfGroup = '';
+    l.isStream = false;
+    (out.schedule[e.w][e.day] = out.schedule[e.w][e.day] || []).push(l);
+  });
+  if(!map.size){
+    throw new Error('Пар с таким преподавателем в выбранных группах не найдено. Проверьте написание ФИО или включите показ пар без указанного преподавателя.');
+  }
+  return out;
+}
+
+const isTeacher = sel => sel && sel.role === 'teacher';
+const loadAny = sel => isTeacher(sel) ? loadTeacher(sel) : loadSchedule(sel);
+const cacheKeyOf = sel => isTeacher(sel)
+  ? 'kubstu.cache.t.' + norm(sel.name).join(' ') + '|' + sel.groups.map(g => g.gr).join(',') + '|' + (sel.includeEmpty ? 1 : 0)
+  : 'kubstu.cache.' + sel.gr;
+
 async function bootSchedule(sel){
   document.getElementById('picker').style.display = 'none';
   document.getElementById('hdr').style.display = '';
-  document.getElementById('groupTitle').textContent = sel.gr;
-  document.title = 'Расписание · ' + sel.gr;
+  ['roleScreen','tpicker'].forEach(id => document.getElementById(id).style.display = 'none');
+  const title = isTeacher(sel) ? shortName(sel.name) : sel.gr;
+  document.getElementById('groupTitle').textContent = title;
+  document.title = 'Расписание · ' + title;
+  document.getElementById('teachersBtn').style.display = isTeacher(sel) ? 'none' : '';
 
-  const cacheKey = 'kubstu.cache.' + sel.gr;
+  const cacheKey = cacheKeyOf(sel);
+
+  applyTheme();
+  bindScheduleEvents();
 
   try{
-    const data = await loadSchedule(sel);
+    const data = await loadAny(sel);
     state.raw = data;
     state.offline = false;
     store.setJSON(cacheKey, { data, ts: Date.now() });
@@ -659,8 +798,6 @@ async function bootSchedule(sel){
   state.ANCHOR_PARITY = state.raw.period.weekParityNow || 'odd';
   state.week = currentParity();
   state.day = todayKey() || 'Пн';
-  applyTheme();
-  bindScheduleEvents();
   updateOfflineBadge((store.getJSON(cacheKey) || {}).ts);
   render();
   tick();
@@ -668,7 +805,7 @@ async function bootSchedule(sel){
 
   async function refresh(){
     try{
-      const fresh = await loadSchedule(sel);
+      const fresh = await loadAny(sel);
       state.raw = fresh;
       state.offline = false;
       store.setJSON(cacheKey, { data: fresh, ts: Date.now() });
@@ -688,82 +825,138 @@ async function bootSchedule(sel){
   window.addEventListener('online', refresh);
 }
 
-/* ============ ЭКРАН ВЫБОРА ГРУППЫ ============ */
-const pInst = document.getElementById('pInst');
-const pKurs = document.getElementById('pKurs');
-const pGroup = document.getElementById('pGroup');
-const pErr = document.getElementById('pErr');
-const pLoading = document.getElementById('pLoading');
+/* ============ ВЫБОР РОЛИ И ГРУПП ============ */
+const $ = id => document.getElementById(id);
+const SCREENS = ['roleScreen','picker','tpicker'];
+function showScreen(id){ SCREENS.forEach(x => $(x).style.display = x === id ? '' : 'none'); }
 
-function setLoading(on){ pLoading.style.display = on ? '' : 'none'; }
-function showErr(msg){ pErr.textContent = msg; pErr.style.display = msg ? '' : 'none'; }
+let facultiesCache = null;
+async function loadFaculties(){
+  if(facultiesCache) return facultiesCache;
+  const resp = await fetch(`${API}/api/faculties?foe=ofo`);
+  const json = await resp.json();
+  if(!json.ok) throw new Error(json.error);
+  return (facultiesCache = json.data);
+}
 
-async function initPicker(){
-  document.getElementById('picker').style.display = '';
-  setLoading(true);
-  try{
-    const resp = await fetch(`${API}/api/faculties?foe=ofo`);
-    const json = await resp.json();
-    if(!json.ok) throw new Error(json.error);
-    pInst.innerHTML = '<option value="">Выберите факультет/институт</option>' +
-      json.data.map(f => `<option value="${f.id}">${esc(f.name)}</option>`).join('');
-  } catch(e){
-    showErr('Не удалось получить список факультетов: ' + e.message);
-  } finally {
-    setLoading(false);
-  }
+// Каскад «институт → курс → группа»; onPick вызывается при выборе группы
+function bindCascade(inst, kurs, group, ui, onPick){
+  const setL = on => ui.loading.style.display = on ? '' : 'none';
+  const showE = m => { ui.err.textContent = m; ui.err.style.display = m ? '' : 'none'; };
 
-  pKurs.innerHTML = ['','1','2','3','4','5','6'].map(k =>
+  kurs.innerHTML = ['','1','2','3','4','5','6'].map(k =>
     k ? `<option value="${k}">${k}</option>` : '<option value="">Выберите курс</option>').join('');
 
-  pInst.addEventListener('change', () => {
-    pKurs.disabled = !pInst.value;
-    pGroup.disabled = true;
-    pGroup.innerHTML = '<option value="">Сначала выберите курс</option>';
-    if(pInst.value) maybeLoadGroups();
+  (async () => {
+    setL(true);
+    try{
+      const data = await loadFaculties();
+      inst.innerHTML = '<option value="">Выберите факультет/институт</option>' +
+        data.map(f => `<option value="${f.id}">${esc(f.name)}</option>`).join('');
+    } catch(e){
+      showE('Не удалось получить список факультетов: ' + e.message);
+    } finally { setL(false); }
+  })();
+
+  async function loadGroups(){
+    if(!inst.value || !kurs.value) return;
+    showE(''); setL(true);
+    group.disabled = true;
+    group.innerHTML = '<option value="">Загрузка…</option>';
+    try{
+      const params = new URLSearchParams({fak_id: inst.value, kurs: kurs.value, foe: 'ofo'});
+      const resp = await fetch(`${API}/api/groups?${params}`);
+      const json = await resp.json();
+      if(!json.ok) throw new Error(json.error);
+      if(!json.data.length){
+        group.innerHTML = '<option value="">Нет групп на этом курсе</option>';
+      } else {
+        group.innerHTML = '<option value="">Выберите группу</option>' +
+          json.data.map(g => `<option value="${esc(g)}">${esc(g)}</option>`).join('');
+        group.disabled = false;
+      }
+    } catch(e){
+      showE('Не удалось получить список групп: ' + e.message);
+    } finally { setL(false); }
+  }
+
+  inst.addEventListener('change', () => {
+    kurs.disabled = !inst.value;
+    group.disabled = true;
+    group.innerHTML = '<option value="">Сначала выберите курс</option>';
+    if(inst.value) loadGroups();
   });
-  pKurs.addEventListener('change', () => { if(pKurs.value) maybeLoadGroups(); });
-  pGroup.addEventListener('change', () => {
-    if(!pGroup.value) return;
-    const sel = {foe:'ofo', fak_id: pInst.value, kurs: pKurs.value, gr: pGroup.value};
+  kurs.addEventListener('change', () => { if(kurs.value) loadGroups(); });
+  group.addEventListener('change', () => {
+    if(!group.value) return;
+    onPick({foe: 'ofo', fak_id: inst.value, kurs: kurs.value, gr: group.value});
+    group.value = '';
+  });
+}
+
+let studentReady = false, teacherReady = false;
+
+function initStudentPicker(){
+  showScreen('picker');
+  if(studentReady) return;
+  studentReady = true;
+  bindCascade($('pInst'), $('pKurs'), $('pGroup'), {err: $('pErr'), loading: $('pLoading')}, g => {
+    const sel = Object.assign({role: 'student'}, g);
     store.setJSON(STORAGE_KEY, sel);
     bootSchedule(sel);
   });
 }
 
-async function maybeLoadGroups(){
-  if(!pInst.value || !pKurs.value) return;
-  showErr('');
-  setLoading(true);
-  pGroup.disabled = true;
-  pGroup.innerHTML = '<option value="">Загрузка…</option>';
-  try{
-    const params = new URLSearchParams({fak_id: pInst.value, kurs: pKurs.value, foe: 'ofo'});
-    const resp = await fetch(`${API}/api/groups?${params}`);
-    const json = await resp.json();
-    if(!json.ok) throw new Error(json.error);
-    if(!json.data.length){
-      pGroup.innerHTML = '<option value="">Нет групп на этом курсе</option>';
-    } else {
-      pGroup.innerHTML = '<option value="">Выберите группу</option>' +
-        json.data.map(g => `<option value="${esc(g)}">${esc(g)}</option>`).join('');
-      pGroup.disabled = false;
-    }
-  } catch(e){
-    showErr('Не удалось получить список групп: ' + e.message);
-  } finally {
-    setLoading(false);
+function initTeacherPicker(){
+  showScreen('tpicker');
+  if(teacherReady) return;
+  teacherReady = true;
+
+  const draft = store.getJSON('kubstu.teacherDraft') || {};
+  let groups = Array.isArray(draft.groups) ? draft.groups.slice() : [];
+  $('tName').value = draft.name || '';
+  $('tEmpty').checked = !!draft.includeEmpty;
+
+  const validate = () => { $('tGo').disabled = !($('tName').value.trim() && groups.length); };
+  function drawChips(){
+    $('tChips').innerHTML = groups.map((g, i) =>
+      `<span class="chip">${esc(g.gr)}<button type="button" data-rm="${i}" aria-label="Убрать группу ${esc(g.gr)}">×</button></span>`).join('');
+    $('tChips').querySelectorAll('[data-rm]').forEach(b => b.addEventListener('click', () => {
+      groups.splice(+b.dataset.rm, 1); drawChips(); validate();
+    }));
+    validate();
   }
+  drawChips();
+
+  bindCascade($('tInst'), $('tKurs'), $('tGroup'), {err: $('tErr'), loading: $('tLoading')}, g => {
+    if(!groups.some(x => x.gr === g.gr)) groups.push(g);
+    drawChips();
+  });
+
+  $('tName').addEventListener('input', validate);
+  $('tGo').addEventListener('click', () => {
+    const sel = {role: 'teacher', name: $('tName').value.trim(), groups, includeEmpty: $('tEmpty').checked};
+    store.setJSON(STORAGE_KEY, sel);
+    store.setJSON('kubstu.teacherDraft', sel);
+    bootSchedule(sel);
+  });
+}
+
+function initRole(){
+  showScreen('roleScreen');
+  $('roleStudent').onclick = initStudentPicker;
+  $('roleTeacher').onclick = initTeacherPicker;
+  document.querySelectorAll('[data-back]').forEach(b => b.onclick = () => showScreen('roleScreen'));
 }
 
 /* ============ INIT ============ */
 (function init(){
   applyTheme();
   const saved = store.getJSON(STORAGE_KEY);
-  if(saved && saved.gr){
+  if(saved && (saved.gr || (saved.role === 'teacher' && saved.name && saved.groups && saved.groups.length))){
     bootSchedule(saved);
   } else {
-    initPicker();
+    initRole();
   }
 })();
 
