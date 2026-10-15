@@ -176,15 +176,17 @@ header.stuck{border-bottom-color:var(--rule)}
 .back-btn{font-size:12.5px;color:var(--ink-dim);margin:0 0 var(--sp-4);padding:6px 0}
 .picker input[type=text]{width:100%;font-family:inherit;font-size:inherit;color:var(--ink);background:var(--surface);border:1px solid var(--rule);border-radius:var(--r-md);padding:10px 12px}
 .picker .hint{font-size:12px;color:var(--ink-faint);margin-top:6px}
-.chips{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:var(--sp-3)}
-.chip{display:inline-flex;align-items:center;gap:6px;font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:700;padding:6px 6px 6px 10px;border-radius:8px;background:var(--surface-2);border:1px solid var(--rule)}
-.chip button{width:22px;height:22px;border-radius:6px;color:var(--ink-dim);font-size:15px;line-height:1}
-.chip button:active{background:var(--rule)}
-.chips:empty::before{content:'Пока ни одной группы';font-size:12.5px;color:var(--ink-faint)}
+.glist{display:flex;flex-direction:column;gap:8px;margin-bottom:var(--sp-3)}
+.glist:empty::before{content:'Пока ни одной группы';font-size:12.5px;color:var(--ink-faint)}
+.grow{display:flex;align-items:center;gap:8px;padding:8px 8px 8px 12px;background:var(--surface);border:1px solid var(--rule);border-radius:var(--r-md)}
+.grow .gn{font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:700;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis}
+.grow .types{display:flex;gap:4px}
+.grow .types button{min-height:30px;padding:0 9px;border-radius:7px;border:1px solid var(--rule);background:var(--surface-2);color:var(--ink-faint);font-size:11.5px;font-weight:600}
+.grow .types button[aria-pressed="true"]{border-color:var(--type);background:var(--type-bg);color:var(--type)}
+.grow .rm{width:30px;height:30px;border-radius:7px;color:var(--ink-dim);font-size:17px;line-height:1}
+.grow .rm:active{background:var(--rule)}
 .add-box{padding:var(--sp-3);border:1px dashed var(--rule-strong);border-radius:var(--r-md);margin-bottom:var(--sp-4)}
 .add-box .field:last-child{margin-bottom:0}
-.check{display:flex;align-items:flex-start;gap:10px;font-size:13px;color:var(--ink-dim);margin-bottom:var(--sp-5);text-transform:none;letter-spacing:0;font-weight:400}
-.check input{margin-top:3px;accent-color:var(--pen)}
 .gbar{display:none;flex-wrap:wrap;gap:6px;margin-bottom:var(--sp-2)}
 .gbar.show{display:flex}
 .gbar button{min-height:34px;padding:0 12px;border-radius:var(--r-sm);border:1px solid var(--rule);background:var(--surface);color:var(--ink-dim);font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:700;transition:background var(--dur) var(--ease),color var(--dur) var(--ease)}
@@ -229,7 +231,7 @@ header.stuck{border-bottom-color:var(--rule)}
   <div class="picker" id="tpicker" style="display:none">
     <button class="back-btn" data-back>← Назад</button>
     <h2>Расписание преподавателя</h2>
-    <p>Введите ФИО и добавьте группы, в которых ведёте занятия, – пары соберутся в одно расписание.</p>
+    <p>Введите ФИО и добавьте группы. Для каждой отметьте, что ведёте: лекции, практики и/или лабораторные, – пары соберутся в одно расписание.</p>
 
     <div class="field">
       <label for="tName">ФИО</label>
@@ -237,8 +239,8 @@ header.stuck{border-bottom-color:var(--rule)}
       <div class="hint">Как в расписании, например «Иванов Иван Иванович». Подойдёт и «Иванов И.И.».</div>
     </div>
 
-    <label style="display:block;font-size:12px;color:var(--ink-faint);margin-bottom:6px;text-transform:uppercase;letter-spacing:.04em;font-weight:600">Ваши группы</label>
-    <div class="chips" id="tChips"></div>
+    <label style="display:block;font-size:12px;color:var(--ink-faint);margin-bottom:6px;text-transform:uppercase;letter-spacing:.04em;font-weight:600">Ваши группы и что в них ведёте</label>
+    <div class="glist" id="tChips"></div>
 
     <div class="add-box">
       <div class="field">
@@ -254,9 +256,6 @@ header.stuck{border-bottom-color:var(--rule)}
         <select id="tGroup" disabled><option value="">Сначала выберите курс</option></select>
       </div>
     </div>
-
-    <label class="check"><input type="checkbox" id="tEmpty">
-      <span>Показывать и пары, где преподаватель в расписании не указан (иногда ФИО ещё не внесено)</span></label>
 
     <button class="primary-btn" id="tGo" disabled>Показать расписание</button>
     <div class="loading" id="tLoading" style="display:none;margin-top:12px">Загружаю…</div>
@@ -745,7 +744,9 @@ async function loadTeacher(sel){
     const gname = sel.groups[i].gr;
     ['odd','even'].forEach(w => Object.entries(r.schedule[w] || {}).forEach(([day, list]) => list.forEach(l => {
       const t = (l.teacher || '').trim();
-      if(!(t ? nameMatches(sel.name, t) : sel.includeEmpty)) return;
+      if(!t || !nameMatches(sel.name, t)) return;
+      const types = sel.groups[i].types;
+      if(types && !types.includes(l.type)) return;
       const key = [w, day, l.num, l.subject, l.type, l.room, t].join('|');
       let e = map.get(key);
       if(!e){ e = { w, day, lesson: Object.assign({}, l), groups: [] }; map.set(key, e); }
@@ -760,15 +761,16 @@ async function loadTeacher(sel){
     (out.schedule[e.w][e.day] = out.schedule[e.w][e.day] || []).push(l);
   });
   if(!map.size){
-    throw new Error('Пар с таким преподавателем в выбранных группах не найдено. Проверьте написание ФИО или включите показ пар без указанного преподавателя.');
+    throw new Error('Пар с таким преподавателем в выбранных группах не найдено. Проверьте написание ФИО и выбранные виды занятий (лекции, практики, лабораторные).');
   }
   return out;
 }
 
+const ALL_TYPES = ['lecture','practice','lab'];
 const isTeacher = sel => sel && sel.role === 'teacher';
 const loadAny = sel => isTeacher(sel) ? loadTeacher(sel) : loadSchedule(sel);
 const cacheKeyOf = sel => isTeacher(sel)
-  ? 'kubstu.cache.t.' + norm(sel.name).join(' ') + '|' + sel.groups.map(g => g.gr).join(',') + '|' + (sel.includeEmpty ? 1 : 0)
+  ? 'kubstu.cache.t.' + norm(sel.name).join(' ') + '|' + sel.groups.map(g => g.gr + ':' + (g.types || ALL_TYPES).join('')).join(',')
   : 'kubstu.cache.' + sel.gr;
 
 /* ---- режим преподавателя: просмотр расписания своих групп ---- */
@@ -987,27 +989,39 @@ function initTeacherPicker(){
   const draft = store.getJSON('kubstu.teacherDraft') || {};
   let groups = Array.isArray(draft.groups) ? draft.groups.slice() : [];
   $('tName').value = draft.name || '';
-  $('tEmpty').checked = !!draft.includeEmpty;
+  groups.forEach(g => { if(!Array.isArray(g.types) || !g.types.length) g.types = ALL_TYPES.slice(); });
 
   const validate = () => { $('tGo').disabled = !($('tName').value.trim() && groups.length); };
+  const TYPE_BTN = [['lecture','Лек'],['practice','Пр'],['lab','Лаб']];
   function drawChips(){
-    $('tChips').innerHTML = groups.map((g, i) =>
-      `<span class="chip">${esc(g.gr)}<button type="button" data-rm="${i}" aria-label="Убрать группу ${esc(g.gr)}">×</button></span>`).join('');
+    $('tChips').innerHTML = groups.map((g, i) => `
+      <div class="grow">
+        <span class="gn">${esc(g.gr)}</span>
+        <span class="types">${TYPE_BTN.map(([k, lbl]) =>
+          `<button type="button" class="type-${k}" data-i="${i}" data-t="${k}" aria-pressed="${g.types.includes(k)}">${lbl}</button>`).join('')}</span>
+        <button type="button" class="rm" data-rm="${i}" aria-label="Убрать группу ${esc(g.gr)}">×</button>
+      </div>`).join('');
+    $('tChips').querySelectorAll('[data-t]').forEach(b => b.addEventListener('click', () => {
+      const g = groups[+b.dataset.i], k = b.dataset.t;
+      if(g.types.includes(k)){ if(g.types.length > 1) g.types = g.types.filter(x => x !== k); }
+      else g.types = ALL_TYPES.filter(x => x === k || g.types.includes(x));
+      drawChips();
+    }));
     $('tChips').querySelectorAll('[data-rm]').forEach(b => b.addEventListener('click', () => {
-      groups.splice(+b.dataset.rm, 1); drawChips(); validate();
+      groups.splice(+b.dataset.rm, 1); drawChips();
     }));
     validate();
   }
   drawChips();
 
   bindCascade($('tInst'), $('tKurs'), $('tGroup'), {err: $('tErr'), loading: $('tLoading')}, g => {
-    if(!groups.some(x => x.gr === g.gr)) groups.push(g);
+    if(!groups.some(x => x.gr === g.gr)) groups.push(Object.assign({types: ALL_TYPES.slice()}, g));
     drawChips();
   });
 
   $('tName').addEventListener('input', validate);
   $('tGo').addEventListener('click', () => {
-    const sel = {role: 'teacher', name: $('tName').value.trim(), groups, includeEmpty: $('tEmpty').checked};
+    const sel = {role: 'teacher', name: $('tName').value.trim(), groups};
     store.setJSON(STORAGE_KEY, sel);
     store.setJSON('kubstu.teacherDraft', sel);
     bootSchedule(sel);
