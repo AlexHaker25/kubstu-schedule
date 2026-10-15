@@ -185,6 +185,10 @@ header.stuck{border-bottom-color:var(--rule)}
 .add-box .field:last-child{margin-bottom:0}
 .check{display:flex;align-items:flex-start;gap:10px;font-size:13px;color:var(--ink-dim);margin-bottom:var(--sp-5);text-transform:none;letter-spacing:0;font-weight:400}
 .check input{margin-top:3px;accent-color:var(--pen)}
+.gbar{display:none;flex-wrap:wrap;gap:6px;margin-bottom:var(--sp-2)}
+.gbar.show{display:flex}
+.gbar button{min-height:34px;padding:0 12px;border-radius:var(--r-sm);border:1px solid var(--rule);background:var(--surface);color:var(--ink-dim);font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:700;transition:background var(--dur) var(--ease),color var(--dur) var(--ease)}
+.gbar button[aria-pressed="true"]{background:var(--ink);border-color:var(--ink);color:var(--bg)}
 .primary-btn{width:100%;min-height:46px;border-radius:var(--r-md);background:var(--ink);color:var(--bg);font-weight:600}
 .primary-btn:disabled{opacity:.35;cursor:not-allowed}
 
@@ -202,6 +206,7 @@ header.stuck{border-bottom-color:var(--rule)}
   <symbol id="i-users" viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.9M16 3.1a4 4 0 0 1 0 7.8"/></symbol>
   <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></symbol>
   <symbol id="i-swap" viewBox="0 0 24 24"><path d="M17 3v4H5M7 21v-4h12"/><path d="M3 7l4-4 4 4M21 17l-4 4-4-4"/></symbol>
+  <symbol id="i-list" viewBox="0 0 24 24"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></symbol>
   <symbol id="i-send" viewBox="0 0 24 24"><path d="M22 2 11 13"/><path d="M22 2 15 22 11 13 2 9 22 2Z"/></symbol>
 </svg>
 
@@ -297,12 +302,14 @@ header.stuck{border-bottom-color:var(--rule)}
       </div>
       <div class="tools">
         <a class="icon-btn" href="https://t.me/BlackLivesSanya" target="_blank" rel="noopener" aria-label="Разработчик в Telegram"><svg class="ic"><use href="#i-send"/></svg></a>
+        <button class="icon-btn" id="groupsBtn" aria-pressed="false" aria-label="Расписание моих групп" style="display:none"><svg class="ic"><use href="#i-list"/></svg></button>
         <button class="icon-btn" id="switchBtn" aria-label="Сменить группу"><svg class="ic"><use href="#i-swap"/></svg></button>
         <button class="icon-btn" id="teachersBtn" aria-pressed="false" aria-label="Список преподавателей"><svg class="ic"><use href="#i-users"/></svg></button>
         <button class="icon-btn" id="themeBtn" aria-label="Сменить тему"><svg class="ic"><use href="#i-moon"/></svg></button>
       </div>
     </div>
 
+    <div class="gbar" id="gbar" role="group" aria-label="Мои группы"></div>
     <div class="seg" role="group" aria-label="Тип недели">
       <button id="btnOdd" aria-pressed="false">Нечётная</button>
       <button id="btnEven" aria-pressed="false">Чётная</button>
@@ -349,7 +356,9 @@ const state = {
   day: 'Пн',
   view: 'day',
   theme: store.get('sch.theme') || 'auto',
-  offline: false
+  offline: false,
+  teacherRaw: null,   // расписание самого преподавателя
+  groupView: null     // имя группы, если открыт просмотр расписания группы
 };
 
 /* ============ ОФЛАЙН-БЕЙДЖ ============ */
@@ -762,6 +771,65 @@ const cacheKeyOf = sel => isTeacher(sel)
   ? 'kubstu.cache.t.' + norm(sel.name).join(' ') + '|' + sel.groups.map(g => g.gr).join(',') + '|' + (sel.includeEmpty ? 1 : 0)
   : 'kubstu.cache.' + sel.gr;
 
+/* ---- режим преподавателя: просмотр расписания своих групп ---- */
+function setupGroupView(sel, ownTitle){
+  const btn = document.getElementById('groupsBtn');
+  const bar = document.getElementById('gbar');
+  const titleEl = document.getElementById('groupTitle');
+
+  function paintBar(){
+    bar.innerHTML = sel.groups.map(g =>
+      `<button type="button" data-g="${esc(g.gr)}" aria-pressed="${g.gr === state.groupView}">${esc(g.gr)}</button>`).join('');
+    bar.querySelectorAll('[data-g]').forEach(b => b.addEventListener('click', () => showGroup(b.dataset.g)));
+  }
+
+  function exitGroups(){
+    state.groupView = null;
+    state.raw = state.teacherRaw;
+    btn.setAttribute('aria-pressed', 'false');
+    bar.classList.remove('show');
+    titleEl.textContent = ownTitle;
+    document.title = 'Расписание · ' + ownTitle;
+    render();
+  }
+
+  async function showGroup(gr){
+    const g = sel.groups.find(x => x.gr === gr);
+    if(!g) return;
+    state.groupView = gr;
+    btn.setAttribute('aria-pressed', 'true');
+    bar.classList.add('show');
+    paintBar();
+    titleEl.textContent = gr;
+    document.title = 'Расписание · ' + gr;
+
+    const key = 'kubstu.cache.' + gr;
+    try{
+      const data = await loadSchedule(g);
+      store.setJSON(key, { data, ts: Date.now() });
+      if(state.groupView !== gr) return;   // за время загрузки успели переключить
+      state.raw = data;
+    } catch(err){
+      if(state.groupView !== gr) return;
+      const cached = store.getJSON(key);
+      if(cached && cached.data){
+        state.raw = cached.data;
+        state.offline = true;
+        updateOfflineBadge(cached.ts);
+      } else {
+        state.raw = null;
+        document.getElementById('content').innerHTML =
+          `<div class="empty"><div class="t">Не получилось загрузить группу ${esc(gr)}</div>
+           <div class="s">${esc(err.message)}</div></div>`;
+        return;
+      }
+    }
+    render();
+  }
+
+  btn.onclick = () => state.groupView ? exitGroups() : showGroup(sel.groups[0].gr);
+}
+
 async function bootSchedule(sel){
   document.getElementById('picker').style.display = 'none';
   document.getElementById('hdr').style.display = '';
@@ -770,6 +838,7 @@ async function bootSchedule(sel){
   document.getElementById('groupTitle').textContent = title;
   document.title = 'Расписание · ' + title;
   document.getElementById('teachersBtn').style.display = isTeacher(sel) ? 'none' : '';
+  document.getElementById('groupsBtn').style.display = isTeacher(sel) ? '' : 'none';
 
   const cacheKey = cacheKeyOf(sel);
 
@@ -794,11 +863,13 @@ async function bootSchedule(sel){
     }
   }
 
+  state.teacherRaw = state.raw;
   state.ANCHOR_DATE = new Date();
   state.ANCHOR_PARITY = state.raw.period.weekParityNow || 'odd';
   state.week = currentParity();
   state.day = todayKey() || 'Пн';
   updateOfflineBadge((store.getJSON(cacheKey) || {}).ts);
+  if(isTeacher(sel)) setupGroupView(sel, title);
   render();
   tick();
   setInterval(tick, 1000);
@@ -806,7 +877,8 @@ async function bootSchedule(sel){
   async function refresh(){
     try{
       const fresh = await loadAny(sel);
-      state.raw = fresh;
+      state.teacherRaw = fresh;
+      if(!state.groupView) state.raw = fresh;
       state.offline = false;
       store.setJSON(cacheKey, { data: fresh, ts: Date.now() });
       state.ANCHOR_DATE = new Date();
